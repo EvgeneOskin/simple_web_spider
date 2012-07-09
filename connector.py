@@ -1,12 +1,12 @@
 import argparse
 import urllib2
-import mimetools
 import HTMLParser
 import urlparse
 import sqlite3
 
-class Content_parser(HTMLParser.HTMLParser):
+class ContentParser(HTMLParser.HTMLParser):
     def __init__(self, in_data, URL):
+        '''Constructor of HTMLParser '''
         HTMLParser.HTMLParser.__init__(self)
         self.data = in_data
         self.currentURL = URL
@@ -14,6 +14,8 @@ class Content_parser(HTMLParser.HTMLParser):
         self.times_matched = 0
         
     def handle_starttag(self, tag, attrs):
+        '''start when parser find start of tag
+        and add URL into dict of links'''
         if tag == 'a':
             for attrs_iter in attrs:
                 if attrs_iter[0] == 'href':
@@ -22,27 +24,34 @@ class Content_parser(HTMLParser.HTMLParser):
                         self.links[new_URL] = False
             
     def handle_data(self, parsed_data):
+        '''start when parser find data
+        and match it with key-word phrase '''
         pasred_data = parsed_data.strip('\n')
         if self.data['What'] in pasred_data:
             self.times_matched += 1
             print('find: "{0}"\nin "{1}"'.format(self.data['What'], self.currentURL))
             
     def get_links(self):
+        '''return dict of web-site links'''
         return self.links
         
     def get_result(self):
+        '''return how match times parser match key-word phrase in web-site data'''
         return self.times_matched
     
-class connector:
+class Connector:
     def __init__(self, in_arg = None, DB_name = 'search_result.db'):
+        '''Constructor of Connector initialize
+        dict {'Where':{URL:bool}, 'What':str, 'How_deep':int}
+        SQLie3 database and its cursor'''
         parser = argparse.ArgumentParser(description='Process some web-operations',
                                          epilog='Bye.')
         parser.add_argument('Where', action='store', nargs=1,
-                            help='\"string\" link to \"home\"-web-site')
+                            help='"string" link to "home"-web-site')
         parser.add_argument('What', action='store', nargs=1,
-                            help='\"string\" what to search')
+                            help='"string" what to search')
         parser.add_argument('How_deep', action='store', nargs=1, type=int,
-                            help='''\"int\" how deep in \"home\"-web-site
+                            help='''"int" how deep in "home"-web-site
                             it need to be searched''')
         parser.add_argument('--find', action='store_const', const = True, default = False,
                             help='finding searched_for in searched_ling')
@@ -60,6 +69,7 @@ class connector:
             pass
 
     def connect(self):
+        '''open URL, read all str from it and start searching'''
         URLlist = self.data['Where'].keys()
         for current_URL in URLlist:
             if not self.data['Where'][current_URL]:
@@ -80,7 +90,9 @@ class connector:
                     self.search(current_URL)
 
     def search(self, current_URL):
-        searcher = Content_parser(in_data = self.data, URL = current_URL)
+        '''create a HTMLParser,
+        write search result in SQLite3 database or save dict of web-site links '''
+        searcher = ContentParser(in_data = self.data, URL = current_URL)
         try:
             searcher.feed(self.content_url_S)
         except HTMLParser.HTMLParseError:
@@ -99,6 +111,8 @@ class connector:
             return current_result
                 
     def deep_search(self):
+        '''search a match with key-word phrase in content of web-sites
+        and go deepper if don't find a match in defined deep'''
         self.current_deeps = 0
         while not self.search_result and self.current_deeps != self.data['How_deep']:
             self.connect()
